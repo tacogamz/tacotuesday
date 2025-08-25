@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taco Time</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body { margin:0; font-family:'Montserrat',sans-serif; background:#fff8f5; color:#b71c1c; overflow:hidden; }
+#foodCanvas { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:-1; }
+
+/* Sidebar */
+.sidebar { position:fixed; top:0; left:0; width:80px; height:100%; background:#d32f2f; display:flex; flex-direction:column; align-items:center; padding-top:20px; z-index:100; box-shadow:2px 0 5px rgba(0,0,0,0.2);}
+.sidebar button { background:none; border:none; color:white; font-size:26px; margin:15px 0; cursor:pointer; transition: transform 0.2s, color 0.2s;}
+.sidebar button:hover { transform:scale(1.2); color:#ffccbc; }
+
+/* Sections */
+.section { display:none; position:absolute; top:0; left:80px; width:calc(100%-80px); height:100%; overflow:auto; padding:25px; background:#fff8f5; }
+.section.active { display:block; }
+h1,h2 { font-weight:700; }
+
+/* Playzone */
+#gameButtons { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:15px; margin-bottom:20px;}
+.game-btn { display:flex; flex-direction:column; align-items:center; background:#ffe4e1; border:2px solid #e53935; border-radius:15px; padding:10px; cursor:pointer; transition: transform 0.2s, background 0.2s; text-align:center; }
+.game-btn:hover { transform:scale(1.05); background:#e53935; color:white; }
+.game-btn img { width:80px; height:80px; border-radius:12px; margin-bottom:5px; object-fit:cover; }
+.game-btn span { font-weight:bold; color:#b71c1c; }
+.game-btn:hover span { color:white; }
+#gameContainer { display:none; flex-direction:column; align-items:center; gap:10px; }
+.back-btn { align-self:flex-start; padding:5px 12px; margin-bottom:5px; border-radius:6px; border:none; background:#b71c1c; color:white; cursor:pointer; }
+#gameControls { display:flex; align-items:center; gap:10px; margin-top:5px; }
+#volumeSlider { width:150px; }
+#fullscreenBtn, #muteBtn { padding:5px 10px; border-radius:6px; border:none; background:#b71c1c; color:white; cursor:pointer; }
+
+/* Proxy */
+#proxySearch { width:50%; padding:5px; margin-bottom:10px; border-radius:5px; border:1px solid #b71c1c; }
+#proxyFrame { width:100%; height:600px; border:none; display:none; border-radius:10px; }
+
+/* Study */
+#notesInput { width:90%; padding:10px; border-radius:8px; border:1px solid #b71c1c; }
+#summaryOutput { background:#fff0f0; padding:10px; border-radius:8px; list-style-type: disc; }
+
+/* Settings */
+label { display:block; margin-top:15px; font-weight:600; }
+input[type="color"], input[type="text"], select, textarea { padding:6px; margin-top:5px; border-radius:5px; border:1px solid #b71c1c; width:90%; }
+</style>
+</head>
+<body>
+
+<canvas id="foodCanvas"></canvas>
+
+<div class="sidebar">
+  <button id="homeBtn" title="Home">🏠</button>
+  <button id="gamesBtn" title="Playzone">🎮</button>
+  <button id="proxyBtn" title="Web Access">🌐</button>
+  <button id="studyBtn" title="Study">📚</button>
+  <button id="settingsBtn" title="Settings">⚙️</button>
+</div>
+
+<!-- Home -->
+<div id="home" class="section active">
+  <h1>🌮 Welcome to Taco Time!</h1>
+  <p>Click the sidebar icons to navigate. Enjoy your stay!</p>
+</div>
+
+<!-- Games -->
+<div id="games" class="section">
+  <h2>🎮 Playzone</h2>
+  <div id="gameButtons"></div>
+  <div id="gameContainer">
+    <button id="backToGames" class="back-btn">⬅ Back to Playzone</button>
+    <iframe id="gameFrame" width="100%" height="600" frameborder="0" allowfullscreen></iframe>
+    <div id="gameControls">
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.05">
+      <button id="muteBtn">🔇</button>
+      <button id="fullscreenBtn">⛶</button>
+    </div>
+  </div>
+</div>
+
+<!-- Proxy -->
+<div id="proxy" class="section">
+  <h2>🌐 Web Access</h2>
+  <input type="text" id="proxySearch" placeholder="Enter website...">
+  <iframe id="proxyFrame"></iframe>
+</div>
+
+<!-- Study -->
+<div id="study" class="section">
+  <h2>📚 Study Tool</h2>
+  <p>Paste your notes below and get a quick summary of key points.</p>
+  <textarea id="notesInput" rows="10" placeholder="Paste your notes here..."></textarea>
+  <br>
+  <button id="summarizeBtn">Summarize</button>
+  <h3>Summary:</h3>
+  <ul id="summaryOutput"></ul>
+</div>
+
+<!-- Settings -->
+<div id="settings" class="section">
+  <h2>⚙️ Settings</h2>
+  <label for="themeSelect">Select Theme:</label>
+  <select id="themeSelect">
+    <option value="default">Default</option>
+    <option value="sakura">Sakura</option>
+    <option value="sunset">Sunset</option>
+    <option value="midnight">Midnight</option>
+    <option value="galaxy">Galaxy</option>
+    <option value="sky">Sky</option>
+  </select>
+  <label>Background Color:</label>
+  <input type="color" id="bgColor" value="#fff8f5">
+  <label>Escape Key:</label>
+  <input type="text" id="panicKey" placeholder="Escape">
+</div>
+
+<script>
+// ===== Falling Mexican Food =====
+const canvas=document.getElementById('foodCanvas'),ctx=canvas.getContext('2d'); canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+const foods=[], images=['🌮','🌯','🫔','🌶️','🥑'];
+function addFood(x,y){ foods.push({x,y,speed:Math.random()*2+1,img:images[Math.floor(Math.random()*images.length)]}); }
+for(let i=0;i<50;i++) addFood(Math.random()*canvas.width,Math.random()*canvas.height);
+function animate(){ ctx.clearRect(0,0,canvas.width,canvas.height); foods.forEach(f=>{ ctx.font="30px Montserrat"; ctx.fillText(f.img,f.x,f.y); f.y+=f.speed; if(f.y>canvas.height) f.y=0; }); requestAnimationFrame(animate); }
+animate();
+document.addEventListener('click',e=>{ if(!['A','BUTTON','INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) addFood(e.clientX,e.clientY); });
+
+// ===== Sidebar =====
+const sections={home:document.getElementById('home'),games:document.getElementById('games'),proxy:document.getElementById('proxy'),study:document.getElementById('study'),settings:document.getElementById('settings')};
+function showSection(id){ Object.values(sections).forEach(s=>s.classList.remove('active')); sections[id].classList.add('active'); }
+document.getElementById('homeBtn').onclick=()=>showSection('home');
+document.getElementById('gamesBtn').onclick=()=>showSection('games');
+document.getElementById('proxyBtn').onclick=()=>showSection('proxy');
+document.getElementById('studyBtn').onclick=()=>showSection('study');
+document.getElementById('settingsBtn').onclick=()=>showSection('settings');
+
+// ===== Games =====
+const gamesList=[
+  {name:'Krunker',src:'https://www.crazygames.com/embed/krunker-io',img:'https://images.crazygames.com/krunker-io/cover-160x90.png'},
+  {name:'Fortzone',src:'https://www.crazygames.com/embed/fortzone-battle-royale',img:'https://images.crazygames.com/fortzone-battle-royale/cover-160x90.png'},
+  {name:'Stick Clash',src:'https://www.crazygames.com/embed/stickman-clash',img:'https://images.crazygames.com/stickman-clash/cover-160x90.png'},
+  {name:'1v1 LOL',src:'https://www.crazygames.com/embed/1v1-lol',img:'https://images.crazygames.com/1v1-lol/cover-160x90.png'},
+  {name:'Eaglercraft',src:'https://www.crazygames.com/embed/eaglercraft',img:'https://images.crazygames.com/eaglercraft/cover-160x90.png'},
+  {name:'MC Classic',src:'https://www.crazygames.com/embed/minecraft-classic',img:'https://images.crazygames.com/minecraft-classic/cover-160x90.png'},
+  {name:'Roblox',src:'https://www.crazygames.com/embed/roblox',img:'https://images.crazygames.com/roblox/cover-160x90.png'},
+  {name:'Stunt Cars 2',src:'https://www.crazygames.com/embed/madalin-stunt-cars-2',img:'https://images.crazygames.com/madalin-stunt-cars-2/cover-160x90.png'},
+  {name:'Epic Battle',src:'https://www.crazygames.com/embed/epic-sword-battle',img:'https://images.crazygames.com/epic-sword-battle/cover-160x90.png'},
+  {name:'Uno Online',src:'https://www.crazygames.com/embed/uno-online',img:'https://images.crazygames.com/uno-online/cover-160x90.png'}
+];
+const gameButtonsDiv=document.getElementById('gameButtons'), gameContainer=document.getElementById('gameContainer'), gameFrame=document.getElementById('gameFrame'), backToGames=document.getElementById('backToGames');
+gamesList.forEach(g=>{
+  const btn=document.createElement('div'); btn.classList.add('game-btn'); btn.innerHTML=`<img src="${g.img}" alt="${g.name}"><span>${g.name}</span>`;
+  btn.onclick=()=>{ gameFrame.src=g.src; gameContainer.style.display='flex'; gameButtonsDiv.style.display='none'; };
+  gameButtonsDiv.appendChild(btn);
+});
+backToGames.onclick=()=>{ gameContainer.style.display='none'; gameButtonsDiv.style.display='grid'; gameFrame.src=''; };
+
+// ===== Proxy =====
+const proxySearch=document.getElementById('proxySearch'), proxyFrame=document.getElementById('proxyFrame');
+proxySearch.addEventListener('keypress',e=>{ if(e.key==='Enter'){ proxyFrame.src='https://coproxy.io/#'+proxySearch.value; proxyFrame.style.display='block'; } });
+
+// ===== Study =====
+const notesInput=document.getElementById('notesInput'), summarizeBtn=document.getElementById('summarizeBtn'), summaryOutput=document.getElementById('summaryOutput');
+summarizeBtn.addEventListener('click',()=>{
+  const notes=notesInput.value.trim(); summaryOutput.innerHTML='';
+  if(!notes){ summaryOutput.innerHTML='<li>No notes entered.</li>'; return; }
+  const keyWords=['important','crucial','remember','note','main','key'];
+  const lines=notes.split(/[\.\n]/);
+  lines.forEach(l=>{ if(keyWords.some(k=>l.toLowerCase().includes(k))) summaryOutput.innerHTML+='<li>'+l.trim()+'</li>'; });
+  if(summaryOutput.innerHTML===''){ summaryOutput.innerHTML='<li>No key points detected.</li>'; }
+});
+
+// ===== Settings =====
+const bgColor=document.getElementById('bgColor'), panicKey=document.getElementById('panicKey'), themeSelect=document.getElementById('themeSelect');
+bgColor.addEventListener('input',()=>document.body.style.background=bgColor.value);
+document.addEventListener('keydown',e=>{ if(e.key===panicKey.value) window.close(); });
+themeSelect.addEventListener('change',()=>{
+  switch(themeSelect.value){
+    case'sakura':document.body.style.background='#ffe4e1'; document.body.style.color='#d81b60'; break;
+    case'sunset':document.body.style.background='#ffeb3b'; document.body.style.color='#6a1b9a'; break;
+    case'midnight':document.body.style.background='#000000'; document.body.style.color='#ffffff'; break;
+    case'galaxy':document.body.style.background='linear-gradient(135deg,#6a0dad,#1e3c72)'; document.body.style.color='#ffffff'; break;
+    case'sky':document.body.style.background='#87ceeb'; document.body.style.color='#ffffff'; break;
+    default:document.body.style.background='#fff8f5'; document.body.style.color='#b71c1c';
+  }
+});
+
+// ===== Game Controls =====
+const volumeSlider=document.getElementById('volumeSlider'), muteBtn=document.getElementById('muteBtn'), fullscreenBtn=document.getElementById('fullscreenBtn');
+let muted=false;
+volumeSlider.addEventListener('input',()=>{ console.log('Adjust your system volume to approx:',volumeSlider.value); });
+muteBtn.addEventListener('click',()=>{ muted=!muted; muteBtn.textContent=muted?'🔈':'🔇'; });
+fullscreenBtn.addEventListener('click',()=>{ if(gameFrame.requestFullscreen) gameFrame.requestFullscreen(); else if(gameFrame.webkitRequestFullscreen) gameFrame.webkitRequestFullscreen(); });
+</script>
+</body>
+</html>
