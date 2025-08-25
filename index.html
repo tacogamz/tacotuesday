@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taco Time</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* General */
+body {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  background: #fff;
+  color: #b71c1c;
+  overflow: hidden;
+}
+#foodCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 80px;
+  height: 100%;
+  background: #e53935;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+  z-index: 100;
+}
+.sidebar button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  margin: 15px 0;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.sidebar button:hover {
+  transform: scale(1.2);
+}
+
+/* Sections */
+.section {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 80px;
+  width: calc(100% - 80px);
+  height: 100%;
+  overflow: auto;
+  padding: 20px;
+}
+.section.active { display: block; }
+h1,h2 { font-weight:700; }
+
+/* Games Section */
+#gameButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+#gameButtons button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 2px solid #e53935;
+  background: white;
+  color: #b71c1c;
+  cursor: pointer;
+  font-weight: bold;
+  transition: transform 0.2s, background 0.2s;
+}
+#gameButtons button:hover {
+  transform: scale(1.05);
+  background: #e53935;
+  color: white;
+}
+#gameFrame {
+  width: 100%;
+  height: 600px;
+  border: 2px solid #b71c1c;
+  border-radius: 10px;
+}
+#gameControls {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* Proxy Section */
+#proxyFrame { width: 100%; height: 600px; border: none; display:none; }
+
+/* Settings */
+label { display: block; margin-top: 15px; }
+
+/* Buttons */
+button.fullscreen {
+  padding: 5px 10px;
+  background: #b71c1c;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<canvas id="foodCanvas"></canvas>
+
+<div class="sidebar">
+  <button id="homeBtn" title="Home">🏠</button>
+  <button id="gamesBtn" title="Games">🎮</button>
+  <button id="proxyBtn" title="Proxy">🌐</button>
+  <button id="settingsBtn" title="Settings">⚙️</button>
+</div>
+
+<div id="home" class="section active">
+  <h1>🌮 Welcome to Taco Time!</h1>
+  <p>Click the sidebar icons to navigate through the sections.</p>
+</div>
+
+<div id="games" class="section">
+  <h2>🎮 Games</h2>
+  <div id="gameButtons">
+    <!-- Example game buttons, add more as needed -->
+    <button data-src="https://www.crazygames.com/embed/fortzone-battle-royale" target="_blank">Fortzone</button>
+    <button data-src="https://www.crazygames.com/embed/stickman-clash" target="_blank">Stick Clash</button>
+    <button data-src="https://www.crazygames.com/embed/1v1-lol" target="_blank">1v1 LOL</button>
+    <button data-src="https://www.crazygames.com/embed/eaglercraft" target="_blank">Eaglercraft</button>
+    <button data-src="https://www.crazygames.com/embed/minecraft-classic" target="_blank">MC Classic</button>
+    <button data-src="https://www.crazygames.com/embed/roblox" target="_blank">Roblox</button>
+    <button data-src="https://www.crazygames.com/embed/krunker-io" target="_blank">Krunker</button>
+  </div>
+  <iframe id="gameFrame"></iframe>
+  <div id="gameControls">
+    <label>Volume: <input type="range" id="volumeSlider" min="0" max="1" step="0.05"></label>
+    <button class="fullscreen" id="fullscreenBtn">Fullscreen</button>
+  </div>
+</div>
+
+<div id="proxy" class="section">
+  <h2>🌐 Proxy</h2>
+  <input type="text" id="proxySearch" placeholder="Enter URL...">
+  <iframe id="proxyFrame"></iframe>
+</div>
+
+<div id="settings" class="section">
+  <h2>⚙️ Settings</h2>
+  <label for="themeSelect">Select Theme:</label>
+  <select id="themeSelect">
+    <option value="default">Default</option>
+    <option value="sakura">Sakura</option>
+    <option value="lebron">Lebron</option>
+    <option value="midnight">Midnight</option>
+    <option value="galaxy">Galaxy</option>
+    <option value="sky">Sky</option>
+  </select>
+  <label>Background Color:</label>
+  <input type="color" id="bgColor" value="#ffffff">
+  <label>Panic Key:</label>
+  <input type="text" id="panicKey" placeholder="Escape">
+</div>
+
+<script>
+// ===== Falling Mexican Food =====
+const canvas = document.getElementById('foodCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const foods = [];
+const images = ['🌮','🌯','🫔','🌶️','🥑'];
+
+function addFood(x,y){
+  foods.push({x,y,speed:Math.random()*2+1,img:images[Math.floor(Math.random()*images.length)]});
+}
+
+// Spawn initial tacos
+for(let i=0;i<50;i++) addFood(Math.random()*canvas.width, Math.random()*canvas.height);
+
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  foods.forEach(f=>{
+    ctx.font="30px Montserrat";
+    ctx.fillText(f.img,f.x,f.y);
+    f.y+=f.speed;
+    if(f.y>canvas.height) f.y=0;
+  });
+  requestAnimationFrame(animate);
+}
+animate();
+
+// ===== Sidebar Navigation =====
+const sections = {home:document.getElementById('home'), games:document.getElementById('games'), proxy:document.getElementById('proxy'), settings:document.getElementById('settings')};
+function showSection(id){
+  Object.values(sections).forEach(s=>s.classList.remove('active'));
+  sections[id].classList.add('active');
+}
+document.getElementById('homeBtn').onclick = ()=>showSection('home');
+document.getElementById('gamesBtn').onclick = ()=>showSection('games');
+document.getElementById('proxyBtn').onclick = ()=>showSection('proxy');
+document.getElementById('settingsBtn').onclick = ()=>showSection('settings');
+
+// ===== Game Buttons =====
+const gameFrame = document.getElementById('gameFrame');
+document.querySelectorAll('#gameButtons button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    gameFrame.src = btn.dataset.src;
+    gameFrame.focus();
+  });
+});
+
+// ===== Fullscreen =====
+document.getElementById('fullscreenBtn').addEventListener('click', ()=>{
+  if(gameFrame.requestFullscreen) gameFrame.requestFullscreen();
+  else if(gameFrame.webkitRequestFullscreen) gameFrame.webkitRequestFullscreen();
+});
+
+// ===== Proxy Search =====
+const proxyFrame = document.getElementById('proxyFrame');
+document.getElementById('proxySearch').addEventListener('keypress', e=>{
+  if(e.key==='Enter'){
+    proxyFrame.src = 'https://coproxy.io/#'+encodeURIComponent(e.target.value);
+    proxyFrame.style.display='block';
+  }
+});
+
+// ===== Background Color =====
+const bgColor = document.getElementById('bgColor');
+bgColor.addEventListener('input', ()=>document.body.style.background=bgColor.value);
+
+// ===== Panic Key =====
+const panicKey = document.getElementById('panicKey');
+document.addEventListener('keydown', e=>{
+  if(e.key === panicKey.value) window.close();
+});
+
+// ===== Themes =====
+const themeSelect = document.getElementById('themeSelect');
+themeSelect.addEventListener('change', ()=>{
+  switch(themeSelect.value){
+    case 'sakura': document.body.style.background='#ffe4e1'; document.body.style.color='#d81b60'; break;
+    case 'lebron': document.body.style.background='#ffeb3b'; document.body.style.color='#6a1b9a'; break;
+    case 'midnight': document.body.style.background='#000000'; document.body.style.color='#ffffff'; break;
+    case 'galaxy': document.body.style.background='linear-gradient(135deg,#6a0dad,#1e3c72)'; document.body.style.color='#ffffff'; break;
+    case 'sky': document.body.style.background='#87ceeb'; document.body.style.color='#ffffff'; break;
+    default: document.body.style.background='#ffffff'; document.body.style.color='#b71c1c';
+  }
+});
+</script>
+
+</body>
+</html>
